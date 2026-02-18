@@ -127,25 +127,25 @@ node scripts/dist/cli.js search
 
 ```bash
 # Search for pages
-npx tsx node scripts/cli.ts search --query "regulatory registration"
+npx tsx /Users/USER/node scripts/cli.ts search --query "regulatory registration"
 
 # List all accessible databases
-npx tsx node scripts/cli.ts list-databases
+npx tsx /Users/USER/node scripts/cli.ts list-databases
 
 # Get a specific page
-npx tsx node scripts/cli.ts get-page --id "abc123..."
+npx tsx /Users/USER/node scripts/cli.ts get-page --id "abc123..."
 
 # Get page content (blocks)
-npx tsx node scripts/cli.ts get-page-content --id "abc123..."
+npx tsx /Users/USER/node scripts/cli.ts get-page-content --id "abc123..."
 
 # Query a database
-npx tsx node scripts/cli.ts query-database --id "abc123..." --limit 10
+npx tsx /Users/USER/node scripts/cli.ts query-database --id "abc123..." --limit 10
 
 # Create a new page
-npx tsx node scripts/cli.ts create-page --parent-page "abc123..." --title "New Page"
+npx tsx /Users/USER/node scripts/cli.ts create-page --parent-page "abc123..." --title "New Page"
 
 # List workspace users
-npx tsx node scripts/cli.ts list-users
+npx tsx /Users/USER/node scripts/cli.ts list-users
 ```
 
 ## How It Works
