@@ -3,7 +3,7 @@
 
 Notion workspace documentation and SOPs
 
-![Version](https://img.shields.io/badge/version-1.1.11-blue) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+![Version](https://img.shields.io/badge/version-1.2.0-blue) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 
 ## Features
 
@@ -59,14 +59,6 @@ node scripts/dist/cli.js search
    ```bash
    cd scripts && npm install
    ```
-
-## Configuration
-
-Copy `config.template.json` to `config.json` and fill in the required values:
-
-| Field | Placeholder |
-|-------|-------------|
-| `credentials_path` | `/path/to/your/credentials` |
 
 ## Available Commands
 
@@ -135,25 +127,25 @@ Copy `config.template.json` to `config.json` and fill in the required values:
 
 ```bash
 # Search for pages
-npx tsx /Users/USER/node scripts/cli.ts search --query "regulatory registration"
+npx tsx $HOME/node scripts/cli.ts search --query "regulatory registration"
 
 # List all accessible databases
-npx tsx /Users/USER/node scripts/cli.ts list-databases
+npx tsx $HOME/node scripts/cli.ts list-databases
 
 # Get a specific page
-npx tsx /Users/USER/node scripts/cli.ts get-page --id "abc123..."
+npx tsx $HOME/node scripts/cli.ts get-page --id "abc123..."
 
 # Get page content (blocks)
-npx tsx /Users/USER/node scripts/cli.ts get-page-content --id "abc123..."
+npx tsx $HOME/node scripts/cli.ts get-page-content --id "abc123..."
 
 # Query a database
-npx tsx /Users/USER/node scripts/cli.ts query-database --id "abc123..." --limit 10
+npx tsx $HOME/node scripts/cli.ts query-database --id "abc123..." --limit 10
 
 # Create a new page
-npx tsx /Users/USER/node scripts/cli.ts create-page --parent-page "abc123..." --title "New Page"
+npx tsx $HOME/node scripts/cli.ts create-page --parent-page "abc123..." --title "New Page"
 
 # List workspace users
-npx tsx /Users/USER/node scripts/cli.ts list-users
+npx tsx $HOME/node scripts/cli.ts list-users
 ```
 
 ## How It Works
