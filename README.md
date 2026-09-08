@@ -3,14 +3,14 @@
 
 Notion workspace documentation and SOPs
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+![Version](https://img.shields.io/badge/version-1.5.0-blue) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Node >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 
 ## Features
 
 - Search
 - **search** — Search pages and databases
 - Page
-- **get-page** — Get a page by ID
+- **get-page** — Get a page by ID (metadata + flattened properties + full payload)
 - **get-page-content** — Get page content (blocks)
 - **create-page** — Create a new page
 - **update-page** — Update page properties
@@ -44,11 +44,11 @@ Notion workspace documentation and SOPs
 git clone https://github.com/bigl34/claude-code-plugin-notion.git
 cd claude-code-plugin-notion
 cp config.template.json config.json  # fill in your credentials
-cd scripts && npm install
+npm --prefix scripts install
 ```
 
 ```bash
-node scripts/dist/cli.js search
+npm --prefix scripts run cli -- search
 ```
 
 ## Installation
@@ -64,28 +64,28 @@ node scripts/dist/cli.js search
 
 ### Search Command
 
-| Command  | Description                | Options                          |
-| -------- | -------------------------- | -------------------------------- |
-| `search` | Search pages and databases | `--query`, `--limit`, `--cursor` |
+| Command  | Description                | Options                                                                             |
+| -------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| `search` | Search pages and databases | `--query`, `--limit`, `--cursor`, `--sort last_edited_time:descending`, `--payload` |
 
 ### Page Commands
 
-| Command            | Description               | Options                                                                         |
-| ------------------ | ------------------------- | ------------------------------------------------------------------------------- |
-| `get-page`         | Get a page by ID          | `--id` (required)                                                               |
-| `get-page-content` | Get page content (blocks) | `--id` (required), `--limit`, `--cursor`                                        |
-| `create-page`      | Create a new page         | `--parent-page` or `--parent-database`, `--title`, `--properties`, `--children` |
-| `update-page`      | Update page properties    | `--id` (required), `--properties`                                               |
-| `archive-page`     | Archive (delete) a page   | `--id` (required)                                                               |
+| Command            | Description                                                       | Options                                                                                                         |
+| ------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `get-page`         | Get a page by ID (metadata + flattened properties + full payload) | `--id` (required)                                                                                               |
+| `get-page-content` | Get page content (blocks)                                         | `--id` (required), `--limit`, `--cursor`, `--depth 0-5`                                                         |
+| `create-page`      | Create a new page                                                 | One of `--parent-page`, `--parent-database`, or `--parent-data-source`; `--title`, `--properties`, `--children` |
+| `update-page`      | Update page properties                                            | `--id` (required), `--properties`                                                                               |
+| `archive-page`     | Archive (delete) a page                                           | `--id` (required)                                                                                               |
 
 ### Database Commands
 
-| Command               | Description                   | Options                                                         |
-| --------------------- | ----------------------------- | --------------------------------------------------------------- |
-| `get-database`        | Get database schema           | `--id` (required)                                               |
-| `query-database`      | Query database rows           | `--id` (required), `--filter`, `--sorts`, `--limit`, `--cursor` |
-| `create-database-row` | Create a row in a database    | `--id` (required), `--properties`                               |
-| `list-databases`      | List all accessible databases | (none)                                                          |
+| Command               | Description                   | Options                                                                                                          |
+| --------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `get-database`        | Get database schema           | One of `--id` (database container) or `--data-source`                                                            |
+| `query-database`      | Query database rows           | One of `--id` (database container) or `--data-source`; `--filter`, `--sorts`, `--limit`, `--cursor`, `--payload` |
+| `create-database-row` | Create a row in a database    | One of `--id` (database container) or `--data-source`; `--properties`                                            |
+| `list-databases`      | List all accessible databases | `--payload`                                                                                                      |
 
 ### Block Commands
 
@@ -112,40 +112,46 @@ node scripts/dist/cli.js search
 
 ### Common Options
 
-| Option                | Description                              |
-| --------------------- | ---------------------------------------- |
-| `--id <id>`           | Notion page, database, block, or user ID |
-| `--query <text>`      | Search query text                        |
-| `--limit <number>`    | Maximum records to return                |
-| `--cursor <cursor>`   | Pagination cursor for next page          |
-| `--filter <json>`     | Filter as JSON string                    |
-| `--sorts <json>`      | Sorts as JSON array string               |
-| `--properties <json>` | Properties as JSON string                |
-| `--children <json>`   | Block children as JSON array string      |
+| Option                      | Description                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `--id <id>`                 | Notion page, database, block, or user ID                                                                           |
+| `--data-source <id>`        | Explicit Notion data source ID for database schema, query, or row creation                                         |
+| `--parent-data-source <id>` | Explicit parent data source ID when creating a database row with `create-page`                                     |
+| `--query <text>`            | Search query text                                                                                                  |
+| `--limit <number>`          | Maximum records to return                                                                                          |
+| `--cursor <cursor>`         | Pagination cursor for next page                                                                                    |
+| `--filter <json>`           | Filter as JSON string                                                                                              |
+| `--sorts <json>`            | Sorts as JSON array string                                                                                         |
+| `--properties <json>`       | Properties as JSON string                                                                                          |
+| `--children <json>`         | Block children as JSON array string                                                                                |
+| `--payload`                 | Include the full wrapped Notion object per result (multi-result reads only; single-object reads always include it) |
 
 ## Usage Examples
 
 ```bash
 # Search for pages
-npx tsx $HOME/node scripts/cli.ts search --query "regulatory registration"
+npm --prefix "scripts" run cli -- search --query "regulatory registration"
 
 # List all accessible databases
-npx tsx $HOME/node scripts/cli.ts list-databases
+npm --prefix "scripts" run cli -- list-databases
 
 # Get a specific page
-npx tsx $HOME/node scripts/cli.ts get-page --id "abc123..."
+npm --prefix "scripts" run cli -- get-page --id "abc123..."
 
 # Get page content (blocks)
-npx tsx $HOME/node scripts/cli.ts get-page-content --id "abc123..."
+npm --prefix "scripts" run cli -- get-page-content --id "abc123..."
 
 # Query a database
-npx tsx $HOME/node scripts/cli.ts query-database --id "abc123..." --limit 10
+npm --prefix "scripts" run cli -- query-database --id "abc123..." --limit 10
+
+# Query an explicit data source (required when a database has multiple sources)
+npm --prefix "scripts" run cli -- query-database --data-source "def456..." --limit 10
 
 # Create a new page
-npx tsx $HOME/node scripts/cli.ts create-page --parent-page "abc123..." --title "New Page"
+npm --prefix "scripts" run cli -- create-page --parent-page "abc123..." --title "New Page"
 
 # List workspace users
-npx tsx $HOME/node scripts/cli.ts list-users
+npm --prefix "scripts" run cli -- list-users
 ```
 
 ## How It Works
