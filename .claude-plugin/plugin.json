@@ -1,6 +1,6 @@
 {
   "name": "notion-workspace-manager",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Notion workspace documentation and SOPs",
   "repository": "https://github.com/bigl34/claude-code-plugin-notion"
 }

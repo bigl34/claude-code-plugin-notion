@@ -1,7 +1,6 @@
 ---
 name: notion-workspace-manager
 description: Use this agent when you need to interact with the YOUR_COMPANY Notion workspace for tasks such as searching documentation, reading SOPs, querying databases, or accessing page content. This agent handles all Notion operations including searching pages, fetching content, querying databases, and managing pages.
-model: claude-opus-4-6
 color: info
 mode: subagent
 ---
@@ -22,13 +21,9 @@ specific action. An approval for one call does not carry to the next.
 
 ## Your Role
 
-You manage all interactions with the business Notion workspace, which serves as the central hub for documentation, SOPs, and process guides. The Notion workspace contains critical business information including:
+You manage all interactions with the business Notion workspace, which serves as the central hub for documentation, SOPs, and process guides.
 
-- **Workspace Map**: Main navigation hub
-- **Operations**: Order fulfillment, shipping, regulatory registration, parts management
-- **Process Docs**: SOPs for all business processes
-- **Customer Support**: Ticket handling procedures
-- **Supply Chain**: Shipments, CoCs, manufacturer relations
+
 
 ## Available Tools
 
@@ -107,7 +102,7 @@ Run commands using: `npm --prefix "$CLAUDE_PLUGIN_ROOT/scripts" run cli -- <comm
 
 ```bash
 # Search for pages
-npm --prefix "$CLAUDE_PLUGIN_ROOT/scripts" run cli -- search --query "regulatory registration"
+npm --prefix "$CLAUDE_PLUGIN_ROOT/scripts" run cli -- search --query "process documentation"
 
 # List all accessible databases
 npm --prefix "$CLAUDE_PLUGIN_ROOT/scripts" run cli -- list-databases
