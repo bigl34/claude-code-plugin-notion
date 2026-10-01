@@ -583,28 +583,44 @@ function isUnsupportedChildrenError(error: unknown): boolean {
   );
 }
 
-export async function flattenNotionBlocksDepthFirst(
+export interface FlattenedNotionBlocks {
+  blocks: NotionJson[];
+  truncated: boolean;
+}
+
+export async function flattenNotionBlocksDepthFirstWithTruncation(
   blocks: NotionJson[],
   options: FlattenNotionBlocksOptions,
-): Promise<NotionJson[]> {
+): Promise<FlattenedNotionBlocks> {
   const out: NotionJson[] = [];
+  let truncated = false;
   const maxBlocks = options.maxBlocks;
   const remaining = (): number =>
     maxBlocks === undefined ? Number.POSITIVE_INFINITY : Math.max(maxBlocks - out.length, 0);
 
   const walk = async (nodes: NotionJson[], parentId: string, currentDepth: number): Promise<void> => {
     for (const block of nodes) {
-      if (remaining() <= 0) break;
+      if (remaining() <= 0) {
+        truncated = true;
+        break;
+      }
       out.push({ ...block, _parent_id: parentId, _depth: currentDepth });
 
-      if (!block.has_children || currentDepth >= options.maxDepth || remaining() <= 0) {
+      if (!block.has_children || currentDepth >= options.maxDepth) {
+        continue;
+      }
+      if (remaining() <= 0) {
+        truncated = true;
         continue;
       }
 
       let startCursor: string | undefined;
       do {
         const room = remaining();
-        if (room <= 0) break;
+        if (room <= 0) {
+          truncated = true;
+          break;
+        }
         try {
           const page = await options.fetchChildren(block.id, {
             startCursor,
@@ -623,9 +639,16 @@ export async function flattenNotionBlocksDepthFirst(
   };
 
   await walk(blocks, options.parentId, 0);
-  return out;
+  return { blocks: out, truncated };
 }
 
+export async function flattenNotionBlocksDepthFirst(
+  blocks: NotionJson[],
+  options: FlattenNotionBlocksOptions,
+): Promise<NotionJson[]> {
+  const flattened = await flattenNotionBlocksDepthFirstWithTruncation(blocks, options);
+  return flattened.blocks;
+}
 
 export interface ViewOptions {
   stats?: WrapStats;

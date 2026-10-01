@@ -233,7 +233,6 @@ export class NotionClient {
   private apiToken: string;
   private baseUrl = "https://api.notion.com/v1";
   private notionVersion: NotionApiVersion;
-  private cacheDisabled: boolean = false;
   private dataSourceIdByDatabaseId = new Map<string, Promise<string>>();
   private databaseIdByDataSourceId = new Map<string, Promise<string>>();
 
@@ -249,14 +248,12 @@ export class NotionClient {
 
 
   disableCache(): void {
-    this.cacheDisabled = true;
     this.dataSourceIdByDatabaseId.clear();
     this.databaseIdByDataSourceId.clear();
     cache.disable();
   }
 
   enableCache(): void {
-    this.cacheDisabled = false;
     cache.enable();
   }
 
@@ -311,12 +308,12 @@ export class NotionClient {
   }
 
   private rememberDataSourceParent(databaseId: string, dataSourceId: string): void {
-    if (this.cacheDisabled) return;
+    if (cache.isDisabled()) return;
     this.databaseIdByDataSourceId.set(dataSourceId, Promise.resolve(databaseId));
   }
 
   private rememberSoleDataSource(databaseId: string, dataSourceId: string): void {
-    if (this.cacheDisabled) return;
+    if (cache.isDisabled()) return;
     this.rememberDataSourceParent(databaseId, dataSourceId);
     this.dataSourceIdByDatabaseId.set(databaseId, Promise.resolve(dataSourceId));
   }
@@ -343,7 +340,7 @@ export class NotionClient {
       );
     }
 
-    const existing = this.cacheDisabled
+    const existing = cache.isDisabled()
       ? undefined
       : this.dataSourceIdByDatabaseId.get(databaseId);
     if (existing) return existing;
@@ -366,11 +363,11 @@ export class NotionClient {
       this.rememberSoleDataSource(databaseId, sources[0].id);
       return sources[0].id;
     })();
-    if (!this.cacheDisabled) this.dataSourceIdByDatabaseId.set(databaseId, pending);
+    if (!cache.isDisabled()) this.dataSourceIdByDatabaseId.set(databaseId, pending);
     try {
       return await pending;
     } catch (error) {
-      if (!this.cacheDisabled && this.dataSourceIdByDatabaseId.get(databaseId) === pending) {
+      if (this.dataSourceIdByDatabaseId.get(databaseId) === pending) {
         this.dataSourceIdByDatabaseId.delete(databaseId);
       }
       throw error;
@@ -378,7 +375,7 @@ export class NotionClient {
   }
 
   private async resolveDatabaseIdForDataSource(dataSourceId: string): Promise<string> {
-    const existing = this.cacheDisabled
+    const existing = cache.isDisabled()
       ? undefined
       : this.databaseIdByDataSourceId.get(dataSourceId);
     if (existing) return existing;
@@ -397,11 +394,11 @@ export class NotionClient {
       this.rememberDataSourceParent(databaseId, dataSourceId);
       return databaseId;
     })();
-    if (!this.cacheDisabled) this.databaseIdByDataSourceId.set(dataSourceId, pending);
+    if (!cache.isDisabled()) this.databaseIdByDataSourceId.set(dataSourceId, pending);
     try {
       return await pending;
     } catch (error) {
-      if (!this.cacheDisabled && this.databaseIdByDataSourceId.get(dataSourceId) === pending) {
+      if (this.databaseIdByDataSourceId.get(dataSourceId) === pending) {
         this.databaseIdByDataSourceId.delete(dataSourceId);
       }
       throw error;
@@ -425,7 +422,7 @@ export class NotionClient {
         ? embeddedDatabaseId
         : undefined);
     if (!databaseId) {
-      const cachedDatabaseId = this.cacheDisabled
+      const cachedDatabaseId = cache.isDisabled()
         ? undefined
         : this.databaseIdByDataSourceId.get(dataSourceId);
       if (cachedDatabaseId) {
@@ -669,7 +666,7 @@ export class NotionClient {
         }));
         return { ...normalizeTrashFields(response), results };
       },
-      { ttl: TTL.FIVE_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIVE_MINUTES }
     );
   }
 
@@ -681,7 +678,7 @@ export class NotionClient {
       async () => this.normalizePageParent(
         await this.request<NotionApiObject>("GET", `/pages/${pageId}`)
       ),
-      { ttl: TTL.FIFTEEN_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIFTEEN_MINUTES }
     );
   }
 
@@ -707,7 +704,7 @@ export class NotionClient {
           await this.request("GET", `/blocks/${blockId}/children${query}`)
         );
       },
-      { ttl: TTL.FIFTEEN_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIFTEEN_MINUTES }
     );
   }
 
@@ -822,7 +819,7 @@ export class NotionClient {
         );
         return this.normalizeDataSourceAsDatabase(dataSource, databaseId);
       },
-      { ttl: TTL.FIFTEEN_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIFTEEN_MINUTES }
     );
   }
 
@@ -880,7 +877,7 @@ export class NotionClient {
           : response.results;
         return { ...normalizeTrashFields(response), ...(results ? { results } : {}) };
       },
-      { ttl: TTL.FIVE_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIVE_MINUTES }
     );
   }
 
@@ -938,6 +935,26 @@ export class NotionClient {
   }
 
 
+  async updateDatabaseProperties(
+    databaseId: string | undefined,
+    properties: Record<string, any>,
+    options: NotionDataSourceTarget = {}
+  ): Promise<any> {
+    const requestProperties = await this.normalizeRelationProperties(properties);
+    const targetId = await this.resolveDataSourceId(databaseId, options.dataSourceId);
+    const endpoint = this.isLegacyVersion()
+      ? `/databases/${targetId}`
+      : `/data_sources/${targetId}`;
+    const raw = await this.request<NotionApiObject>("PATCH", endpoint, {
+      properties: requestProperties,
+    });
+    cache.invalidatePattern(/^database/);
+    cache.invalidatePattern(/^databases_list/);
+    cache.invalidatePattern(/^query_database/);
+    cache.invalidatePattern(/^search/);
+    return normalizeTrashFields(raw);
+  }
+
   async getBlock(blockId: string): Promise<any> {
     const cacheKey = createCacheKey("block", { id: blockId, notionVersion: this.notionVersion });
     return cache.getOrFetch(
@@ -945,7 +962,7 @@ export class NotionClient {
       async () => normalizeTrashFields(
         await this.request("GET", `/blocks/${blockId}`)
       ),
-      { ttl: TTL.FIFTEEN_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIFTEEN_MINUTES }
     );
   }
 
@@ -1042,7 +1059,7 @@ export class NotionClient {
         const query = params.toString() ? `?${params.toString()}` : "";
         return this.request("GET", `/users${query}`);
       },
-      { ttl: TTL.HOUR, bypassCache: this.cacheDisabled }
+      { ttl: TTL.HOUR }
     );
   }
 
@@ -1051,7 +1068,7 @@ export class NotionClient {
     return cache.getOrFetch(
       cacheKey,
       () => this.request("GET", `/users/${userId}`),
-      { ttl: TTL.HOUR, bypassCache: this.cacheDisabled }
+      { ttl: TTL.HOUR }
     );
   }
 
@@ -1059,7 +1076,7 @@ export class NotionClient {
     return cache.getOrFetch(
       `self:${this.notionVersion}`,
       () => this.request("GET", "/users/me"),
-      { ttl: TTL.HOUR, bypassCache: this.cacheDisabled }
+      { ttl: TTL.HOUR }
     );
   }
 
@@ -1082,7 +1099,7 @@ export class NotionClient {
         if (options.pageSize) params.set("page_size", String(options.pageSize));
         return this.request("GET", `/comments?${params.toString()}`);
       },
-      { ttl: TTL.FIVE_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIVE_MINUTES }
     );
   }
 
@@ -1127,7 +1144,7 @@ export class NotionClient {
         } while (startCursor);
         return { object: "list", results, has_more: false, next_cursor: null };
       },
-      { ttl: TTL.FIVE_MINUTES, bypassCache: this.cacheDisabled }
+      { ttl: TTL.FIVE_MINUTES }
     );
   }
 }

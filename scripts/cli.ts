@@ -1,12 +1,13 @@
 #!/usr/bin/env npx tsx
 
-import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { z, createCommand, runCli, cacheCommands, cliTypes, buildSafeOutput } from "@local/cli-utils";
 import { NotionClient } from "./notion-client.js";
 import {
   canonicalizeNotionUrl,
   createWrapStats,
-  flattenNotionBlocksDepthFirst,
+  flattenNotionBlocksDepthFirstWithTruncation,
   notionBlockView,
   notionCommentView,
   notionDatabaseView,
@@ -209,20 +210,21 @@ export const commands = {
       const { id, cursor, limit, depth } = args as { id: string; cursor?: string; limit?: number; depth?: number };
       const raw = await client.getBlocks(id, { startCursor: cursor, pageSize: limit });
 
-      const expanded = await flattenNotionBlocksDepthFirst(raw.results ?? [], {
+      const expanded = await flattenNotionBlocksDepthFirstWithTruncation(raw.results ?? [], {
         parentId: id,
         maxDepth: depth ?? 0,
-        maxBlocks: depth && depth > 0 ? (limit ?? 100) : limit,
+        maxBlocks: limit,
         fetchChildren: (blockId, options) => client.getBlocks(blockId, options),
       });
 
       const stats = createWrapStats();
-      const blocks = expanded.map((block: Record<string, unknown>) =>
+      const blocks = expanded.blocks.map((block: Record<string, unknown>) =>
         notionBlockView(block, { stats, fieldPrefix: "blocks[]." }),
       );
+      const truncation = expanded.truncated ? { truncated: true } : {};
 
       return finalizeEnvelope(
-        { command: "get-page-content", page_id: id, count: blocks.length, has_more: raw.has_more, next_cursor: raw.next_cursor },
+        { command: "get-page-content", page_id: id, count: blocks.length, has_more: raw.has_more, next_cursor: raw.next_cursor, ...truncation },
         { blocks },
         stats,
       );
@@ -431,6 +433,27 @@ export const commands = {
     { sideEffect: "write", requiresSafeOutput: true }
   ),
 
+  "update-database": createCommand(
+    z.object({
+      id: z.string().min(1).optional().describe("Database container ID"),
+      dataSource: z.string().min(1).optional().describe("Explicit data source ID"),
+      properties: z.string().min(1).describe("Property schema patch as JSON. Adding a property appends it as the right-most column; {\"Name\":null} removes one; {\"Old\":{\"name\":\"New\"}} renames one."),
+    }).refine((data) => [data.id, data.dataSource].filter((value) => value !== undefined).length === 1, {
+      message: "Exactly one of --id or --data-source is required",
+    }),
+    async (args, client: NotionClient) => {
+      const { id, dataSource, properties } = args as { id?: string; dataSource?: string; properties: string };
+      const updated = await client.updateDatabaseProperties(
+        id,
+        parseJson(properties) as Record<string, unknown>,
+        { dataSourceId: dataSource }
+      );
+      return writeEchoEnvelope("update-database", updated);
+    },
+    "Add, remove or rename database properties (schema patch)",
+    { sideEffect: "write", requiresSafeOutput: true }
+  ),
+
   "get-block": createCommand(
     z.object({
       id: z.string().min(1).describe("Block ID"),
@@ -604,7 +627,16 @@ function writeEchoEnvelope(command: string, response: Record<string, unknown> | 
   return finalizeEnvelope(echo.metadata, echo.content, stats);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+let isCliEntry = false;
+try {
+  isCliEntry =
+    process.argv[1] !== undefined &&
+    import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+} catch {
+  isCliEntry = false;
+}
+
+if (isCliEntry) {
   runCli(commands, NotionClient, {
     programName: "notion-cli",
     description: "Notion workspace operations",
